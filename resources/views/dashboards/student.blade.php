@@ -32,6 +32,8 @@
                 <a href="{{ route('courses.my') }}"><button data-tab="assignments"
                         class="w-full px-3 py-2 text-left rounded hover:bg-indigo-600 tabBtn">My Enrolled
                         Courses</button></a>
+
+
             </nav>
         </aside>
         <div class="flex flex-col flex-1" style="height: 100%; overflow-y: auto;">

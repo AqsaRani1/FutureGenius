@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
-
 {
     public function index()
     {
@@ -19,11 +18,11 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-    'title' => 'required|string|max:255',
-    'description' => 'nullable|string',
-    'start_date' => 'required|date',
-    'duration' => 'required|integer|min:1',
-]);
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'start_date' => 'required|date',
+            'duration' => 'required|integer|min:1',
+        ]);
 
 
 
@@ -31,7 +30,7 @@ class CourseController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'start_date' => $request->start_date,
-    'duration' => $request->duration,
+            'duration' => $request->duration,
         ]);
 
 
@@ -130,39 +129,68 @@ class CourseController extends Controller
     {
         return $this->belongsToMany(User::class, 'enrollments', 'course_id', 'student_id');
     }
-public function overview()
-{
-    $now = now('Asia/Karachi');
+    public function overview()
+    {
+        $now = now('Asia/Karachi');
 
-    $courses = auth()->user()
-        ->coursesEnrolled()
-        ->with(['events' => function($q) use ($now) {
+        $courses = auth()->user()
+            ->coursesEnrolled()
+            ->with([
+                'events' => function ($q) use ($now) {
 
-            $q->where(function($q2) use ($now) {
-                $q2
-                    ->where('start', '>', $now)
-                    ->orWhere(function($q3) use ($now) {
-                        $q3->where('start', '<=', $now)
-                           ->where(function($q4) use ($now) {
-                               $q4->where('end_date', '>=', $now)
-                                  ->orWhereNull('end_date'); // include ongoing with no end
-                           });
-                    });
-            })
-            ->with('quiz')
-            ->orderBy('start');
-        }])
-        ->get();
+                    $q->where(function ($q2) use ($now) {
+                        $q2
+                            ->where('start', '>', $now)
+                            ->orWhere(function ($q3) use ($now) {
+                                $q3->where('start', '<=', $now)
+                                    ->where(function ($q4) use ($now) {
+                                        $q4->where('end_date', '>=', $now)
+                                            ->orWhereNull('end_date'); // include ongoing with no end
+                                    });
+                            });
+                    })
+                        ->with('quiz')
+                        ->orderBy('start');
+                }
+            ])
+            ->get();
 
-    return view('student.overview', compact('courses', 'now'));
-}
+        return view('student.overview', compact('courses', 'now'));
+    }
 
 
     public function show(Course $course)
-{
-    // Eager load instructors (if many-to-many relation)
-    $course->load('instructors');
-    return view('student.courseshow', compact('course'));
-}
+    {
+        $course->load([
+            'instructors',
+            'events.quiz', // quiz relation if exists
+            'events' => function ($q) {
+                $q->orderBy('event_date');
+            }
+        ]);
+
+        $studentId = auth()->id();
+
+        // Load assignment submissions + quiz attempts for this student
+        foreach ($course->events as $event) {
+
+            // Assignment submission
+            if ($event->type === 'assignment') {
+                $event->submission = \App\Models\AssignmentSubmission::where('event_id', $event->id)
+                    ->where('student_id', $studentId)
+                    ->first();
+            }
+
+            // Quiz attempt
+            if ($event->type === 'quiz' && $event->quiz) {
+                $event->attempt = \App\Models\QuizAttempt::where('quiz_id', $event->quiz->id)
+                    ->where('student_id', $studentId)
+                    ->first();
+            }
+        }
+
+        return view('student.courseshow', compact('course'));
+    }
+
 
 }

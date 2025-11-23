@@ -64,6 +64,18 @@ Route::prefix('/student')->middleware(['auth', 'role:student'])->group(function 
     // Route::get('assignments/{id}', [StudentAssignmentController::class, 'show'])->name('student.assignments.show');
     Route::post('assignments/{id}/submit', [StudentAssignmentController::class, 'submit'])->name('student.assignments.submit');
 
+    // Assignment
+    Route::get('/student/event/{event}/assignment', [AssignmentController::class, 'view'])->name('student.assignment.view');
+    Route::post('/student/event/{event}/assignment/submit', [AssignmentController::class, 'submit'])->name('student.assignment.submit');
+
+    // Quiz
+    Route::get('/student/event/{event}/quiz', [QuizController::class, 'attempt'])->name('student.quiz.attempt');
+    Route::post('/student/event/{event}/quiz/{number}', [QuizController::class, 'answer'])->name('student.quiz.answer');
+    Route::post('/student/event/{event}/quiz/finish', [QuizController::class, 'finish'])->name('student.quiz.finish');
+
+    // View quiz result
+    Route::get('/student/quiz/result/{attempt}', [QuizController::class, 'result'])->name('student.quiz.result');
+
 });
 
 Route::prefix('/instructor')->middleware(['auth', 'role:instructor'])->group(function () {

@@ -169,8 +169,6 @@ $status = $event->type === 'quiz' ? ($isOpen ? 'Available Now' : 'Closed') : '';
                                     @endif
                                 @endif
                             </span>
-
-
                         </li>
                     @endforeach
                 @endforeach

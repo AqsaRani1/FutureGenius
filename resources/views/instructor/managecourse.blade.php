@@ -175,11 +175,19 @@
                                     <span class="text-danger " style="font: 12px">{{ $message }}</span>
                                 @enderror
                             </div>
-                            <div class="mb-3">
+                            {{-- <div class="mb-3">
                                 <label class="form-label fw-semibold">Event Date & Time</label>
                                 <input type="datetime-local" name="event_date" class="shadow-sm form-control rounded-2"
                                     required>
                                 @error('event_date')
+                                    <span class="text-danger " style="font: 12px">{{ $message }}</span>
+                                @enderror
+                            </div> --}}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Start Date & Time</label>
+                                <input type="datetime-local" name="start" class="shadow-sm form-control rounded-2"
+                                    required>
+                                @error('start')
                                     <span class="text-danger " style="font: 12px">{{ $message }}</span>
                                 @enderror
                             </div>
@@ -192,14 +200,14 @@
                                 @enderror
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Upload File</label>
+                                <label class="form-label fw-semibold">Upload File(if Assignment)</label>
                                 <input type="file" name="file_path" class="shadow-sm form-control rounded-2">
                                 @error('file')
                                     <span class="text-danger " style="font: 12px">{{ $message }}</span>
                                 @enderror
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Meeting Link (for Live Session)</label>
+                                <label class="form-label fw-semibold">Meeting Link (if Live Session)</label>
                                 <input type="url" name="meeting_link" class="shadow-sm form-control rounded-2"
                                     placeholder="https://...">
                                 @error('meeting_link')
@@ -226,7 +234,8 @@
 
                 <h5 class="mb-3 fw-bold text-secondary">📌 Upcoming Events</h5>
                 <div class="row g-3">
-                    @forelse($course->upcomingEvents as $event)
+                    {{-- @dd($course) --}}
+                    @forelse($course->events as $event)
                         <div class="col-md-4">
                             <div class="border-0 shadow-sm card h-100 rounded-4 event-card">
                                 <span class="badge bg-secondary">

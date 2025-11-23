@@ -65,7 +65,7 @@ class InstructorController extends Controller
         $request->validate([
             'title' => 'required|string',
             'description' => 'nullable|string',
-            'event_date' => 'required|date',
+            'event_date' => 'date',
             'end_date' => 'nullable|date|after_or_equal:event_date',
             'start' => 'nullable|date|after_or_equal:event_date',
             'type' => 'required|in:assignment,quiz,live_session',
@@ -114,6 +114,7 @@ class InstructorController extends Controller
         $quiz = Quiz::create([
             'course_event_id' => $event->id,
             'title' => $request->title,
+            'duration' => $request->duration,
         ]);
         return redirect()->route('quiz.questions', $quiz->id)->with('success', 'Quiz created. Add questions now.');
     }

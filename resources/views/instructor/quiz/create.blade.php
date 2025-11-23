@@ -5,6 +5,8 @@
         @csrf
         <label>Quiz Title</label>
         <input type="text" name="title" required>
+        <label>Quiz Duration(in muntues)</label>
+        <input type="number" name="duration" required>
         <button type="submit">Create Quiz</button>
     </form>
 @endsection

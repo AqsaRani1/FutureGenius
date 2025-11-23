@@ -66,7 +66,7 @@
             <div class="col-lg-10">
 
                 <!-- Course Card -->
-                <div class="course-card shadow">
+                <div class="shadow course-card">
                     <div class="row g-0">
 
                         <!-- Left Section (Header) -->
@@ -74,7 +74,7 @@
                             <h2>{{ $course->title }}</h2>
                             <p>{{ $course->description }}</p>
 
-                            <div class="course-actions mt-4">
+                            <div class="mt-4 course-actions">
                                 @if (auth()->user()->coursesEnrolled->contains($course->id))
                                     <form action="{{ route('courses.unenroll', $course->id) }}" method="POST">
                                         @csrf
@@ -92,8 +92,8 @@
                         </div>
 
                         <!-- Right Section (Details) -->
-                        <div class="col-md-6 p-4">
-                            <h5 class="fw-bold mb-3 text-dark">📌 Course Details</h5>
+                        <div class="p-4 col-md-6">
+                            <h5 class="mb-3 fw-bold text-dark">📌 Course Details</h5>
 
                             <div class="details-box">
                                 <strong>👨‍🏫 Instructor(s):</strong><br>
@@ -119,7 +119,7 @@
                                 <span class="badge bg-success">Active</span>
                             </div>
 
-                            <div class="d-flex justify-content-end mt-4">
+                            <div class="mt-4 d-flex justify-content-end">
                                 <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary back-btn">⬅ Back</a>
                             </div>
                         </div>
@@ -130,5 +130,103 @@
 
             </div>
         </div>
+        <div class="mt-5">
+            <h3 class="mb-3 fw-bold">📌 Course Activities</h3>
+
+            @foreach ($course->events as $event)
+                @php
+                    $now = now();
+
+                    $start = $event->start ? \Carbon\Carbon::parse($event->start) : null;
+                    $end = $event->end_date ? \Carbon\Carbon::parse($event->end_date) : null;
+
+                    // Quiz Open Status
+                    $isQuizOpen = $event->type === 'quiz' ? $start && $start <= $now && (!$end || $now <= $end) : false;
+
+                    $submission = $event->submission ?? null;
+                    $attempt = $event->attempt ?? null;
+                @endphp
+
+                <div class="details-box">
+                    <strong>{{ ucfirst($event->type) }}:</strong> {{ $event->title }}
+
+                    <br>
+                    <small class="text-muted">
+                        {{ $event->event_date ? \Carbon\Carbon::parse($event->event_date)->format('M d, H:i') : '' }}
+                        @if ($end)
+                            → {{ $end->format('M d, H:i') }}
+                        @endif
+                    </small>
+
+                    <div class="mt-2">
+
+                        {{-- Assignment --}}
+                        @if ($event->type === 'assignment')
+                            {{-- If submitted --}}
+                            @if ($submission)
+                                <div class="text-success fw-bold">
+                                    ✔ Submitted on {{ $submission->created_at->format('M d, H:i') }}
+                                </div>
+
+                                {{-- If graded --}}
+                                @if ($submission->grade !== null)
+                                    <div class="mt-1">
+                                        <strong>Grade:</strong> {{ $submission->grade }} / 100 <br>
+                                        <strong>Feedback:</strong> {{ $submission->feedback ?? 'No feedback' }}
+                                    </div>
+                                @else
+                                    <div class="text-warning">⏳ Waiting for grading</div>
+                                @endif
+                            @else
+                                {{-- If not submitted --}}
+                                <a href="{{ route('student.assignment.view', $event->id) }}"
+                                    class="text-primary fw-bold">Submit Assignment</a>
+                            @endif
+
+
+                            {{-- Quiz --}}
+                        @elseif ($event->type === 'quiz')
+                            @if (!$event->quiz)
+                                <span class="text-danger">No question added yet</span>
+                            @elseif ($attempt)
+                                <div class="text-success fw-bold">
+                                    ✔ Attempted on {{ $attempt->created_at->format('M d, H:i') }}
+                                </div>
+                                <div>
+                                    <strong>Score:</strong> {{ $attempt->score }}
+                                </div>
+                                {{-- <a href="{{ route('student.quiz.result', $attempt->id) }}" class="text-primary fw-bold">
+                                    View Result
+                                </a> --}}
+                            @elseif ($isQuizOpen)
+                                <a href="{{ route('student.quiz.attempt', $event->id) }}" class="text-primary fw-bold">
+                                    Attempt Quiz
+                                </a>
+                            @else
+                                <span class="text-danger">Quiz Closed</span>
+                            @endif
+
+
+                            {{-- Live Session --}}
+                        @elseif ($event->type === 'live_session')
+                            @php
+                                $canJoin = $event->meeting_link && $now >= $start && (!$end || $now <= $end);
+                            @endphp
+
+                            @if ($canJoin)
+                                <a href="{{ $event->meeting_link }}" target="_blank" class="fw-bold text-primary">
+                                    Join Live Session
+                                </a>
+                            @elseif (!$event->meeting_link)
+                                <span class="text-muted">No link added</span>
+                            @else
+                                <span class="text-muted">Not started yet</span>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
     </div>
 @endsection
