@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AssignmentSubmission;
 use App\Models\course;
 use App\Models\CourseEvents;
+use App\Models\QuizAttempt;
 use Illuminate\Http\Request;
- use Carbon\Carbon;
- use App\Models\Quiz;
+use Carbon\Carbon;
+use App\Models\Quiz;
 use App\Models\QuizQuestion;
 use App\Models\QuizOption;
 class InstructorController extends Controller
@@ -19,14 +21,14 @@ class InstructorController extends Controller
     }
     public function course($id)
     {
-          $course = Course::with(['contents', 'events', 'students'])->findOrFail($id);
+        $course = Course::with(['contents', 'events', 'students'])->findOrFail($id);
 
-    // Filter upcoming events only
-    $course->upcomingEvents = $course->events->filter(function($event) {
-        return Carbon::parse($event->event_date)->isFuture();
-    });
+        // Filter upcoming events only
+        $course->upcomingEvents = $course->events->filter(function ($event) {
+            return Carbon::parse($event->event_date)->isFuture();
+        });
 
-    return view('instructor.managecourse', compact('course'));
+        return view('instructor.managecourse', compact('course'));
     }
     // public function managecourse()
     // {
@@ -58,158 +60,213 @@ class InstructorController extends Controller
         return back()->with('success', 'Content added successfully');
     }
 
-  public function storeEvent(Request $request, Course $course)
-{
-    $request->validate([
-        'title' => 'required|string',
-        'description' => 'nullable|string',
-        'event_date' => 'required|date',
-        'end_date' => 'nullable|date|after_or_equal:event_date',
-        'start' => 'nullable|date|after_or_equal:event_date',
-        'type' => 'required|in:assignment,quiz,live_session',
-        'file_path' => 'nullable|file|max:2048',          // assignment file
-        'meeting_link' => 'nullable|url',           // live session
-    ]);
+    public function storeEvent(Request $request, Course $course)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'description' => 'nullable|string',
+            'event_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:event_date',
+            'start' => 'nullable|date|after_or_equal:event_date',
+            'type' => 'required|in:assignment,quiz,live_session',
+            'file_path' => 'nullable|file|max:2048',          // assignment file
+            'meeting_link' => 'nullable|url',           // live session
+        ]);
 
-    if ($request->hasFile('file_path')) {
-    $file = $request->file('file_path');
+        if ($request->hasFile('file_path')) {
+            $file = $request->file('file_path');
 
-    // Clean filename (optional: remove spaces, special chars)
-    $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-    $extension = $file->getClientOriginalExtension();
-    $fullName = $filename . '.' . $extension;
+            // Clean filename (optional: remove spaces, special chars)
+            $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $extension = $file->getClientOriginalExtension();
+            $fullName = $filename . '.' . $extension;
 
-    // Store in 'public/assignments'
-    $path = $file->storeAs('assignments', $fullName, 'public');
-} else {
-    $path = null;
-}
+            // Store in 'public/assignments'
+            $path = $file->storeAs('assignments', $fullName, 'public');
+        } else {
+            $path = null;
+        }
 
-    $course->events()->create([
-        'title' => $request->title,
-        'description' => $request->description,
-        'event_date' => $request->event_date,
-        'end_date' => $request->end_date,
-        'type' => $request->type,
-        'file_path' => $path,
-        'meeting_link' => $request->meeting_link,
-        'start' =>$request->start_date,
-    ]);
+        $course->events()->create([
+            'title' => $request->title,
+            'description' => $request->description,
+            'event_date' => $request->event_date,
+            'end_date' => $request->end_date,
+            'type' => $request->type,
+            'file_path' => $path,
+            'meeting_link' => $request->meeting_link,
+            'start' => $request->start_date,
+        ]);
 
-    return back()->with('success', 'Event created successfully');
-}
+        return back()->with('success', 'Event created successfully');
+    }
 
 
 
-public function createQuiz(CourseEvents $event) {
-    return view('instructor.quiz.create', compact('event'));
-}
+    public function createQuiz(CourseEvents $event)
+    {
+        return view('instructor.quiz.create', compact('event'));
+    }
 
-public function storeQuiz(Request $request, CourseEvents $event) {
-    $request->validate(['title' => 'required|string']);
-    $quiz = Quiz::create([
-        'course_event_id' => $event->id,
-        'title' => $request->title,
-    ]);
-    return redirect()->route('quiz.questions', $quiz->id)->with('success', 'Quiz created. Add questions now.');
-}
+    public function storeQuiz(Request $request, CourseEvents $event)
+    {
+        $request->validate(['title' => 'required|string']);
+        $quiz = Quiz::create([
+            'course_event_id' => $event->id,
+            'title' => $request->title,
+        ]);
+        return redirect()->route('quiz.questions', $quiz->id)->with('success', 'Quiz created. Add questions now.');
+    }
 
-public function showQuizQuestions(Quiz $quiz) {
-    return view('instructor.quiz.questions', compact('quiz'));
-}
+    public function showQuizQuestions(Quiz $quiz)
+    {
+        return view('instructor.quiz.questions', compact('quiz'));
+    }
 
-public function storeQuizQuestions(Request $request, Quiz $quiz) {
-    $request->validate([
-        'questions.*.question' => 'required|string',
-        'questions.*.options.*.text' => 'required|string',
-        'questions.*.options.*.is_correct' => 'required|in:0,1'
-    ]);
+    public function storeQuizQuestions(Request $request, Quiz $quiz)
+    {
+        $request->validate([
+            'questions.*.question' => 'required|string',
+            'questions.*.options.*.text' => 'required|string',
+            'questions.*.options.*.is_correct' => 'required|in:0,1'
+        ]);
 
-    foreach ($request->questions as $qData) {
+        foreach ($request->questions as $qData) {
+            $question = QuizQuestion::create([
+                'quiz_id' => $quiz->id,
+                'question' => $qData['question'],
+                'type' => 'mcq',
+            ]);
+
+            foreach ($qData['options'] as $option) {
+                QuizOption::create([
+                    'quiz_question_id' => $question->id,
+                    'option_text' => $option['text'],
+                    'is_correct' => (bool) $option['is_correct'], // cast to boolean
+                ]);
+            }
+        }
+
+        return redirect()->route('instructor.course', $quiz->event->course_id)
+            ->with('success', 'Questions added successfully.');
+    }
+
+    public function create(Course $course)
+    {
+        return view('quiz.create', compact('course'));
+    }
+
+    public function store(Request $request, Course $course)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'description' => 'nullable|string',
+        ]);
+
+        $quiz = Quiz::create([
+            'course_id' => $course->id,
+            'title' => $request->title,
+            'description' => $request->description,
+        ]);
+
+        // Redirect to add first question
+        return redirect()->route('quiz.questions.create', $quiz->id)
+            ->with('success', 'Quiz created! Add questions now.');
+    }
+
+    public function createQuestion(Quiz $quiz)
+    {
+        return view('instructor.quiz.questions', compact('quiz'));
+    }
+
+    public function storeQuestion(Request $request, Quiz $quiz)
+    {
+        $request->validate([
+            'question' => 'required|string',
+            'options.*.text' => 'required|string',
+            'options.*.is_correct' => 'required|in:0,1',
+        ]);
+
         $question = QuizQuestion::create([
             'quiz_id' => $quiz->id,
-            'question' => $qData['question'],
+            'question' => $request->question,
             'type' => 'mcq',
         ]);
 
-        foreach ($qData['options'] as $option) {
+        foreach ($request->options as $option) {
             QuizOption::create([
                 'quiz_question_id' => $question->id,
                 'option_text' => $option['text'],
-                'is_correct' => (bool)$option['is_correct'], // cast to boolean
+                'is_correct' => (bool) $option['is_correct'],
             ]);
         }
+
+        // Stay on same page with new empty form
+        return redirect()->route('quiz.questions.create', $quiz->id)
+            ->with('success', 'Question added! Add another or finish.');
     }
 
-    return redirect()->route('instructor.course', $quiz->event->course_id)
-                     ->with('success', 'Questions added successfully.');
-}
+    public function assignmentSubmissions($eventId)
+    {
+        $event = CourseEvents::findOrFail($eventId);
+        // dd($event);
 
-public function create(Course $course)
-{
-    return view('quiz.create', compact('course'));
-}
+        $submission = AssignmentSubmission::where('event_id', $eventId)->
+            with('student', 'event')
+            ->get();
+        return view('instructor.assignments.submissions', compact('event', 'submission'));
+    }
+    public function gradeAssignment($id)
+    {
+        $submission = AssignmentSubmission::with('student', 'event')->findOrFail($id);
 
-public function store(Request $request, Course $course)
-{
-    $request->validate([
-        'title' => 'required|string',
-        'description' => 'nullable|string',
-    ]);
-
-    $quiz = Quiz::create([
-        'course_id' => $course->id,
-        'title' => $request->title,
-        'description' => $request->description,
-    ]);
-
-    // Redirect to add first question
-    return redirect()->route('quiz.questions.create', $quiz->id)
-                     ->with('success', 'Quiz created! Add questions now.');
-}
-
-public function createQuestion(Quiz $quiz)
-{
-    return view('instructor.quiz.questions', compact('quiz'));
-}
-
-public function storeQuestion(Request $request, Quiz $quiz)
-{
-    $request->validate([
-        'question' => 'required|string',
-        'options.*.text' => 'required|string',
-        'options.*.is_correct' => 'required|in:0,1',
-    ]);
-
-    $question = QuizQuestion::create([
-        'quiz_id' => $quiz->id,
-        'question' => $request->question,
-        'type' => 'mcq',
-    ]);
-
-    foreach ($request->options as $option) {
-        QuizOption::create([
-            'quiz_question_id' => $question->id,
-            'option_text' => $option['text'],
-            'is_correct' => (bool)$option['is_correct'],
+        return view('instructor.assignments.grade', compact('submission'));
+    }
+    public function storeGradeAssignment(Request $request, $id)
+    {
+        $request->validate([
+            'grade' => 'required|numeric|min:0|max:100',
+            'feedback' => 'nullable|string',
         ]);
+
+        $submission = AssignmentSubmission::findOrFail($id);
+
+        $submission->grade = $request->grade;
+        $submission->feedback = $request->feedback;
+        $submission->save();
+
+        return back()->with('success', 'Grade saved!');
+    }
+    public function quizAttempts($eventId)
+    {
+        $event = CourseEvents::findOrFail($eventId);
+
+        $attempts = Quiz::where('course_event_id', $eventId)
+            ->with('attempts.student')
+            ->get();
+        // dd($attempts);
+        return view('instructor.quiz.attempt', compact('event', 'attempts'));
     }
 
-    // Stay on same page with new empty form
-    return redirect()->route('quiz.questions.create', $quiz->id)
-                     ->with('success', 'Question added! Add another or finish.');
-}
+    public function gradeQuiz($id)
+    {
+        $attempt = QuizAttempt::with('student', 'quiz')->findOrFail($id);
+        return view('instructor.quizzes.grade', compact('attempt'));
+    }
+    public function storeGradeQuiz(Request $request, $id)
+    {
+        $request->validate([
+            'score' => 'required|numeric|min:0|max:100',
+            'feedback' => 'nullable|string',
+        ]);
 
-// public function courseevents($id)
-// {
-//     $course = Course::with(['contents', 'events', 'students'])->findOrFail($id);
+        $attempt = QuizAttempt::findOrFail($id);
+        $attempt->score = $request->score;
+        $attempt->feedback = $request->feedback;
+        $attempt->submitted_at = now();
+        $attempt->save();
 
-//     // Filter upcoming events only
-//     $course->upcomingEvents = $course->events->filter(function($event) {
-//         return Carbon::parse($event->event_date)->isFuture();
-//     });
-
-//     return view('instructor.managecourse', compact('course'));
-// }
+        return back()->with('success', 'Quiz grade updated!');
+    }
 
 }

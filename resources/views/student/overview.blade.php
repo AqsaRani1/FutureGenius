@@ -150,11 +150,27 @@ $status = $event->type === 'quiz' ? ($isOpen ? 'Available Now' : 'Closed') : '';
                                         <a href="{{ route('student.quiz.attempt', $event->id) }}"
                                             class="text-indigo-600">Attempt Quiz</a>
                                     @endif
-                                @elseif($event->type == 'live_session' && $event->meeting_link)
-                                    <a href="{{ $event->meeting_link }}" target="_blank"
-                                        class="text-sm text-indigo-600">Join</a>
+                                @elseif($event->type == 'live_session')
+                                    @php
+                                        $start = \Carbon\Carbon::parse($event->start, 'Asia/Karachi');
+                                        $end = $event->end_date
+                                            ? \Carbon\Carbon::parse($event->end_date, 'Asia/Karachi')
+                                            : null;
+                                        $canJoin = $event->meeting_link && $now >= $start && (!$end || $now <= $end);
+                                    @endphp
+
+                                    @if ($canJoin)
+                                        <a href="{{ $event->meeting_link }}" target="_blank"
+                                            class="text-sm text-indigo-600">Join Meeting</a>
+                                    @elseif (!$event->meeting_link)
+                                        <span class="text-gray-500">No Link Added</span>
+                                    @else
+                                        <span class="text-gray-500">Not Started Yet</span>
+                                    @endif
                                 @endif
                             </span>
+
+
                         </li>
                     @endforeach
                 @endforeach

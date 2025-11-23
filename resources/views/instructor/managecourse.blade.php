@@ -282,8 +282,37 @@
                     </div>
                 </div>
             </div>
+            <div class="tab-pane fade" id="grading" role="tabpanel">
+                <div class="px-4 py-2 text-white section-header bg-warning rounded-top-4">
+                    <h5 class="mb-0">📝 Assignment & Quiz Grading</h5>
+                </div>
 
+                <div class="border-0 shadow-sm card rounded-bottom-4">
+                    <div class="card-body">
+                        <h5 class="mt-3 fw-bold text-secondary" style="font-weight: bold; font-size: 30px;">📌 Assignment
+                            Submissions</h5>
+                        @foreach ($course->events->where('type', 'assignment') as $event)
+                            <h6 class="mt-3 fw-bold">{{ $event->title }}</h6>
+                            <a href="{{ route('instructor.assignment.submissions', $event->id) }}" target="_blank"
+                                class="btn btn-sm btn-primary" style="color: blue">View submission</a>
+                        @endforeach
+                    </div>
+                    <hr>
+
+                    <h5 class="mt-4 fw-bold text-secondary" style="font-weight: bold; font-size: 30px;">🧪 Quiz Attempts
+                    </h5>
+                    @foreach ($course->events->where('type', 'quiz') as $event)
+                        <h6 class="mt-3 fw-bold">{{ $event->title }}</h6>
+
+                        <a href="{{ route('instructor.quiz.attempts', $event->id) }}" target="_blank"
+                            class="btn btn-sm btn-primary" style="color: blue">View Attempts</a>
+                    @endforeach
+
+                </div>
+            </div>
         </div>
+
+    </div>
     </div>
 
     <!-- Custom CSS -->

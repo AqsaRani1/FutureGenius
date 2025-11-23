@@ -5,144 +5,84 @@ namespace App\Http\Controllers;
 use App\Models\CourseEvents;
 use App\Models\QuizAttempt;
 use App\Models\QuizAnswer;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Auth;
+use Carbon\Carbon;
 
 class QuizController extends Controller
 {
-    /**
-     * Start the quiz
-     */
+    // Start quiz (create attempt ONCE)
     public function attempt(CourseEvents $event)
     {
-        if ($event->type !== 'quiz') {
-            abort(403, 'Not a quiz event.');
-        }
-
+        if ($event->type !== 'quiz') abort(403);
         $quiz = $event->quiz()->first();
-        if (!$quiz) {
-            return back()->with('error', 'Quiz not set for this event.');
-        }
 
-        $now = Carbon::now('Asia/Karachi');
-        $start = Carbon::parse($event->start, 'Asia/Karachi');
-        $end = $event->end_date ? Carbon::parse($event->end_date) : null;
-
-        $isOpen = $end ? $now->between($start, $end) : $now->greaterThanOrEqualTo($start);
-        if (!$isOpen) {
-            return back()->with('error', 'Quiz not available right now.');
-        }
-
-        // Find or create quiz attempt
         $attempt = QuizAttempt::firstOrCreate(
-            ['quiz_id' => $quiz->id, 'student_id' => Auth::id()],
-            ['score' => 0, 'started_at' => now('Asia/Karachi')]
+            [
+                'quiz_id' => $quiz->id,
+                'student_id' => auth()->id(),
+            ],
+            [
+                'score' => 0,
+                'started_at' => now(), // use raw time
+            ]
         );
 
-        // First question
-        $number = 1;
-        return $this->showQuestion($event, $number, $attempt);
+        return redirect()->route('student.quiz.question', [
+            'event' => $event->id,
+            'number' => 1
+        ]);
     }
 
-    /**
-     * Show a specific question
-     */
+    // Show question with FIXED END TIME
     public function question(CourseEvents $event, $number)
     {
-        $quiz = $event->quiz;
+        $quiz = $event->quiz()->first();
         $attempt = QuizAttempt::where('quiz_id', $quiz->id)
-            ->where('student_id', Auth::id())
+            ->where('student_id', auth()->id())
             ->firstOrFail();
 
-        return $this->showQuestion($event, $number, $attempt);
-    }
+        $total = $quiz->questions()->count();
+        if ($number < 1 || $number > $total) abort(404);
 
-    /**
-     * Common method to show question with timer
-     */
-    private function showQuestion(CourseEvents $event, $number, QuizAttempt $attempt)
-    {
-        $quiz = $event->quiz;
-        $questions = $quiz->questions;
+        // FIXED END TIMESTAMP
+        $quizEndTimestamp = Carbon::parse($attempt->started_at)
+            ->addMinutes($quiz->duration)
+            ->timestamp;
 
-        if ($number < 1 || $number > $questions->count()) abort(404);
-
-        $question = $questions[$number - 1];
-
-        // Load question start times from JSON
-        $qTimes = $attempt->question_started_at ? json_decode($attempt->question_started_at, true) : [];
-
-        // If question not started yet, save start time
-        if (!isset($qTimes[$number])) {
-            $qTimes[$number] = now('Asia/Karachi')->toDateTimeString();
-            $attempt->update(['question_started_at' => json_encode($qTimes)]);
+        // Timer over?
+        if (now()->timestamp >= $quizEndTimestamp) {
+            return redirect()->route('student.quiz.finish', $event->id);
         }
 
-        $questionStarted = Carbon::parse($qTimes[$number]);
-        $questionDuration = $quiz->duration ? $quiz->duration * 60 : 60; // default 1 min
-        $remaining = $questionDuration - Carbon::now('Asia/Karachi')->diffInSeconds($questionStarted);
+        $question = $quiz->questions()->skip($number - 1)->first();
 
-        if ($remaining <= 0) {
-            return $this->autoSubmitOnTimeout($event, $number, $attempt);
-        }
-
-        return view('student.quiz_question', compact('event','quiz','question','number','remaining'));
+        return view('student.quiz_question', compact(
+            'event',
+            'question',
+            'number',
+            'total',
+            'quizEndTimestamp',
+            'quiz'
+        ));
     }
 
-    /**
-     * Store submitted answer
-     */
+    // Save answer
     public function submitAnswer(Request $request, CourseEvents $event, $number)
     {
         $quiz = $event->quiz;
         $questions = $quiz->questions;
         $question = $questions[$number - 1];
 
-        $request->validate([
-            'option_id' => 'nullable|exists:quiz_options,id',
-        ]);
-
         $attempt = QuizAttempt::where('quiz_id', $quiz->id)
-            ->where('student_id', Auth::id())
+            ->where('student_id', auth()->id())
             ->firstOrFail();
-
-        QuizAnswer::updateOrCreate(
-            [
-                'quiz_attempt_id'  => $attempt->id,
-                'quiz_question_id' => $question->id
-            ],
-            [
-                'quiz_option_id' => $request->option_id ?? null
-            ]
-        );
-
-        // Next question or finish
-        if ($number < $questions->count()) {
-            return redirect()->route('student.quiz.question', [
-                'event'  => $event->id,
-                'number' => $number + 1
-            ]);
-        }
-
-        return redirect()->route('student.quiz.result', $event->id);
-    }
-
-    /**
-     * Auto-submit unanswered question when timer expires
-     */
-    private function autoSubmitOnTimeout(CourseEvents $event, $number, QuizAttempt $attempt)
-    {
-        $quiz = $event->quiz;
-        $questions = $quiz->questions;
-        $question = $questions[$number - 1];
 
         QuizAnswer::updateOrCreate(
             [
                 'quiz_attempt_id' => $attempt->id,
                 'quiz_question_id' => $question->id
             ],
-            ['quiz_option_id' => null]
+            ['quiz_option_id' => $request->option_id]
         );
 
         if ($number < $questions->count()) {
@@ -152,29 +92,43 @@ class QuizController extends Controller
             ]);
         }
 
+        return redirect()->route('student.quiz.finish', $event->id);
+    }
+
+    // FINISH QUIZ — POST ONLY
+    public function finish(CourseEvents $event)
+    {
+        $quiz = $event->quiz;
+        $attempt = QuizAttempt::where('quiz_id', $quiz->id)
+            ->where('student_id', auth()->id())
+            ->firstOrFail();
+
+        $correct = $attempt->answers()
+            ->whereHas('option', fn($q) => $q->where('is_correct', 1))
+            ->count();
+
+        $attempt->update(['score' => $correct]);
+
         return redirect()->route('student.quiz.result', $event->id);
     }
 
-    /**
-     * Show final quiz result
-     */
-    public function result(CourseEvents $event)
-    {
-        $quiz = $event->quiz;
+    // SHOW RESULT
+  public function result(CourseEvents $event)
+{
+    $quiz = $event->quiz;
+    $attempt = QuizAttempt::where('quiz_id', $quiz->id)
+        ->where('student_id', auth()->id())
+        ->firstOrFail();
 
-        $attempt = QuizAttempt::where('quiz_id', $quiz->id)
-            ->where('student_id', Auth::id())
-            ->firstOrFail();
+    $totalQuestions = $quiz->questions()->count();
+    $correctAnswers = $attempt->answers()
+        ->whereHas('option', fn($q) => $q->where('is_correct', 1))
+        ->count();
 
-        $answers = $attempt->answers()->with('option')->get();
+    $score = round(($correctAnswers / $totalQuestions) * 100);
 
-        $correct = $answers->filter(function ($ans) {
-            return $ans->option && $ans->option->is_correct == 1;
-        })->count();
+    return view('student.quiz_result', compact('quiz', 'score'));
+}
 
-        $score = round(($correct / $quiz->questions->count()) * 100);
-        $attempt->update(['score' => $score]);
 
-        return view('student.quiz_result', compact('quiz', 'score'));
-    }
 }

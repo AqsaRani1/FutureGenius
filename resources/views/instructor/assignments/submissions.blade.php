@@ -1,8 +1,8 @@
-a@extends('dashboards.instructor')
+@extends('dashboards.instructor')
 
 @section('content')
     <div class="max-w-4xl mx-auto mt-6">
-        <h2 class="mb-4 text-2xl font-bold">Submissions for: {{ $assignment->title }}</h2>
+        <h2 class="mb-4 text-2xl font-bold">Submissions for: {{ $event->title }}</h2>
 
         <div class="p-4 bg-white rounded-lg shadow">
             <table class="min-w-full divide-y divide-gray-200">
@@ -15,9 +15,9 @@ a@extends('dashboards.instructor')
                         <th class="px-4 py-2 text-left">Action</th>
                     </tr>
                 </thead>
-
+                {{-- @dd($submission) --}}
                 <tbody class="divide-y divide-gray-100">
-                    @foreach ($assignment->submissions as $sub)
+                    @foreach ($submission as $sub)
                         <tr>
                             <td class="px-4 py-2">{{ $sub->student->name }}</td>
 

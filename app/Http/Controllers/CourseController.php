@@ -130,7 +130,7 @@ class CourseController extends Controller
     {
         return $this->belongsToMany(User::class, 'enrollments', 'course_id', 'student_id');
     }
- public function overview()
+public function overview()
 {
     $now = now('Asia/Karachi');
 
@@ -140,21 +140,23 @@ class CourseController extends Controller
 
             $q->where(function($q2) use ($now) {
                 $q2
-                    // upcoming
                     ->where('start', '>', $now)
-                    // or open now
                     ->orWhere(function($q3) use ($now) {
                         $q3->where('start', '<=', $now)
-                           ->where('end_date', '>=', $now);
+                           ->where(function($q4) use ($now) {
+                               $q4->where('end_date', '>=', $now)
+                                  ->orWhereNull('end_date'); // include ongoing with no end
+                           });
                     });
             })
-            ->with('quiz') // IMPORTANT, load quiz here!!
+            ->with('quiz')
             ->orderBy('start');
         }])
         ->get();
 
-    return view('student.overview', compact('courses'));
+    return view('student.overview', compact('courses', 'now'));
 }
+
 
     public function show(Course $course)
 {

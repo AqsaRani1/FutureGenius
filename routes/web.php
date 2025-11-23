@@ -31,16 +31,36 @@ Route::prefix('/student')->middleware(['auth', 'role:student'])->group(function 
     Route::delete('/courses/{course}/unenroll', [CourseController::class, 'unenroll'])->name('courses.unenroll');
     Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
     Route::get('/quiz/{event}/attempt', [QuizController::class, 'attempt'])->name('student.quiz.attempt');
-    Route::get('/quiz/{event}/question/{number}', [QuizController::class, 'question'])->name('student.quiz.question');
-    Route::post('/quiz/{event}/question/{number}/submit', [QuizController::class, 'submitAnswer'])->name('student.quiz.answer');
-    Route::get('/quiz/{event}/result', [QuizController::class, 'result'])->name('student.quiz.result');
+    Route::get('/student/event/{event}', [StudentController::class, 'viewEvent'])
+        ->name('student.event.view');
+
+    // Start quiz
+    Route::get('/quiz/{event}/attempt', [QuizController::class, 'attempt'])
+        ->name('student.quiz.attempt');
+
+    // Show question
+    Route::get('/quiz/{event}/question/{number}', [QuizController::class, 'question'])
+        ->name('student.quiz.question');
+
+    // Submit answer
+    Route::post('/quiz/{event}/question/{number}/submit', [QuizController::class, 'submitAnswer'])
+        ->name('student.quiz.answer');
+
+    // Finish quiz (POST only)
+    Route::post('/quiz/{event}/finish', [QuizController::class, 'finish'])
+        ->name('student.quiz.finish');
+
+    // Show result
+    Route::get('/quiz/{event}/result', [QuizController::class, 'result'])
+        ->name('student.quiz.result');
+
     Route::get('/assignment/{event}', [StudentAssignmentController::class, 'show'])
-     ->name('student.assignment.view');
+        ->name('student.assignment.view');
     Route::post('/assignment/{event}/submit', [StudentAssignmentController::class, 'submit'])
         ->name('student.assignment.submit');
     Route::post('/assignment/{event}/delete', [StudentAssignmentController::class, 'deleteSubmission'])
-     ->name('student.assignment.delete');
-     Route::get('assignments', [StudentAssignmentController::class, 'index'])->name('student.assignments.index');
+        ->name('student.assignment.delete');
+    Route::get('assignments', [StudentAssignmentController::class, 'index'])->name('student.assignments.index');
     // Route::get('assignments/{id}', [StudentAssignmentController::class, 'show'])->name('student.assignments.show');
     Route::post('assignments/{id}/submit', [StudentAssignmentController::class, 'submit'])->name('student.assignments.submit');
 
@@ -60,21 +80,31 @@ Route::prefix('/instructor')->middleware(['auth', 'role:instructor'])->group(fun
     Route::post('/quiz/{quiz}/questions/store', [InstructorController::class, 'storeQuizQuestions'])->name('quiz.questions.store');
 
 
-     Route::get('instructor/assignments', [InstructorAssignmentController::class, 'index'])->name('instructor.assignments.index');
+    Route::get('instructor/assignments', [InstructorAssignmentController::class, 'index'])->name('instructor.assignments.index');
     Route::get('instructor/assignments/create', [InstructorAssignmentController::class, 'create'])->name('instructor.assignments.create');
     Route::post('instructor/assignments/store', [InstructorAssignmentController::class, 'store'])->name('instructor.assignments.store');
     Route::get('instructor/assignments/{id}/submissions', [InstructorAssignmentController::class, 'submissions'])->name('instructor.assignments.submissions');
-// Show form to create quiz
-Route::get('/course/{course}/quiz/create', [QuizController::class, 'create'])->name('quizcreate');
-Route::post('/course/{course}/quiz/store', [QuizController::class, 'store'])->name('quizstore');
+    // Show form to create quiz
+    Route::get('/course/{course}/quiz/create', [QuizController::class, 'create'])->name('quizcreate');
+    Route::post('/course/{course}/quiz/store', [QuizController::class, 'store'])->name('quizstore');
 
-// Add questions to quiz
-Route::get('/quiz/{quiz}/questions/create', [InstructorController::class, 'createQuestion'])->name('quiz.questions.create');
-Route::post('/quiz/{quiz}/questions/store', [InstructorController::class, 'storeQuestion'])->name('quiz.questionsstore');
-Route::post(
-    'instructor/assignments/submissions/{id}/grade',
-    [InstructorAssignmentController::class, 'gradeSubmission']
-)->name('instructor.assignment.grade');
+    // Add questions to quiz
+    Route::get('/quiz/{quiz}/questions/create', [InstructorController::class, 'createQuestion'])->name('quiz.questions.create');
+    Route::post('/quiz/{quiz}/questions/store', [InstructorController::class, 'storeQuestion'])->name('quiz.questionsstore');
+    Route::post(
+        'instructor/assignments/submissions/{id}/grade',
+        [InstructorAssignmentController::class, 'gradeSubmission']
+    )->name('instructor.assignment.grade');
+
+    Route::get('/assignments/{event}/submissions', [InstructorController::class, 'assignmentSubmissions'])->name('instructor.assignment.submissions');
+
+    // Route::get('/instructor/submission/{id}', [InstructorController::class, 'gradeAssignment'])->name('instructor.assignment.grade');
+    Route::post('/submission/{id}', [InstructorController::class, 'storeGradeAssignment'])->name('instructor.assignment.grade.store');
+
+    // Quizzes
+    Route::get('/instructor/quizzes/{event}/attempts', [InstructorController::class, 'quizAttempts'])->name('instructor.quiz.attempts');
+
+    Route::get('/instructor/quiz-attempt/{id}', [InstructorController::class, 'gradeQuiz'])->name('instructor.quiz.grade');
 
 
 });
